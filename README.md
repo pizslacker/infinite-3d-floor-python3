@@ -1,10 +1,10 @@
-# hypno-tunnel-python3
+# infinite-3d-floor
 
-A little excercise for myself porting yet another demoscene'ish program from C into Python3, showing off classic Amiga demoscene-like graphics, **On Linux**.
+A little excercise for myself creating yet another demoscene'ish program in Python3, showing off classic Amiga demoscene-like "_infinite floor_" graphics, **On Linux**.
 
-Made with C using SDL2 that implements a perspective checkered spinning tunnel, Bresenham's Line Algortihm moving starfield and a isometric polygon cube moving floor. Now with a soundbyte bgm loop!
+Made with Python3 using PyGame that implements a perspective checkered spinning tunnel, Bresenham's Line Algortihm moving starfield and a isometric polygon cube moving floor. Now with a soundbyte bgm loop!
 
-Should work on any Linux distribution that has `SDL2` + `SDL2_mixer`.
+Should work on any Linux distribution that has `Python3` + `PyGame`.
 
 ## Required:
 ```bash
@@ -13,7 +13,7 @@ pip install pygame numpy
 
 Usage:
 ```bash
-$ ./hypno-tunnel -f / --fullscreen /  -w 1280 -h 720 / --width 1280 --height 720
+$ ./infinite-3d-floor.py -f / --fullscreen /  -w 1280 -h 720 / --width 1280 --height 720
 ```
 
 #### What:
@@ -21,10 +21,7 @@ $ ./hypno-tunnel -f / --fullscreen /  -w 1280 -h 720 / --width 1280 --height 720
 - `40KB` soundbyte loop (courtesy of [**k!M**](https://soundcloud.com/kim-olsen-357297567)), making the total size 60KB!
 
 #### How:
-- **Perspective Tunneling**: Rings scale with non-linear power distribution ($r^{2.2}$) to give a 3D depth-vanishing effect toward the horizon vanishing point.
-- **Animated Luminance**: A sine-driven travelling wave calculates greyscale intensity ($lum \in [10, 250]$) across the concentric rings along with subtle axial rotation ($t \times 0.2$).
-- **Back-to-Front Compositing**: The tunnel renders first directly onto the backbuffer, allowing the isometric floor cubes to cleanly occlude the bottom portion of the tunnel.
-- It uses **Bresenham's Line Algorithm** for parrallax star trails.
-- Isometric cube floor: We replace ASCII characters with filled polygonal quads, dramatically increasing the visual quality while keeping the same 2:1 isometric projection math and back-to-front rendering order.
+- **Perspective Floor**: map the 2D screen pixels of the bottom half of the screen into 3D world space using a depth divisor (Distance $Z = \frac{\text{Camera Height}}{Y}$).
+- **Rotozoomer**: 
 
 ![infinite-3d-floor](images/infinite-3d-floor.png)
