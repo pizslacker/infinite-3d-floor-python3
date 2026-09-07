@@ -40,32 +40,27 @@ def draw_text_to_surface(surface, text, x, y, scale, color):
                     pygame.draw.rect(surface, color, (x + (i*8 + col)*scale, y + row*scale, scale, scale))
 
 def generate_roto_badge():
-    """Generates the glassy checkerboard badge using NumPy array slicing."""
+    """Generates the simple glassy checkerboard badge."""
     badge = pygame.Surface((TEX_SIZE, TEX_SIZE), pygame.SRCALPHA)
     
-    # 1. Coordinate grids
     X, Y = np.mgrid[-128:128, -128:128]
     dist_sq = X**2 + Y**2
 
-    # 2. Checkerboard
     check = (((X + 128) >> 4) ^ ((Y + 128) >> 4)) & 1
     cr = np.where(check, 0x99, 0x33).astype(np.uint8)
     cg = np.where(check, 0x00, 0x00).astype(np.uint8)
     cb = np.where(check, 0x33, 0x11).astype(np.uint8)
 
-    # 3. Transparency mask (keep the circular shape)
     alpha = np.zeros_like(X, dtype=np.uint8)
     alpha[dist_sq <= 120**2] = 255
 
-    # 4. Push NumPy array into the Pygame surface memory
     pygame.surfarray.pixels_alpha(badge)[:] = alpha
     pixels3d = pygame.surfarray.pixels3d(badge)
     pixels3d[:, :, 0] = cr
     pixels3d[:, :, 1] = cg
     pixels3d[:, :, 2] = cb
-    del pixels3d # Release surface lock
+    del pixels3d 
 
-    # 5. Burn text on top
     text = "k ! M"
     scale = 3
     tx = (TEX_SIZE - (len(text) * 8 * scale)) // 2
@@ -77,36 +72,36 @@ def generate_roto_badge():
 
 def main():
     pygame.init()
-    pygame.mixer.init() # Initialize the audio engine
+    pygame.mixer.init()
     
-    # --- LOAD AND PLAY AUDIO LOOP ---
+    screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+    pygame.display.set_caption("Python Demoscene: Infinite 3D Floor")
+    
     try:
         pygame.mixer.music.load("drone.mp3")
-        pygame.mixer.music.play(-1) # -1 tells Pygame to loop the track infinitely
+        pygame.mixer.music.play(-1) 
     except pygame.error as e:
         print(f"Warning: Could not load drone.mp3 - {e}")
 
-    screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
-    pygame.display.set_caption("Linux Demoscene - Parallax Hypno Tunnel w/Starfield and Isometric Cube Floor")
-    
-    # 4x4 Bayer Matrix tiled to fill the entire screen array instantly
-    bayer4x4 = np.array([
-        [ 0,  8,  2, 10], [12,  4, 14,  6],
-        [ 3, 11,  1,  9], [15,  7, 13,  5]
-    ], dtype=np.int32).T 
-    dither_map = np.tile(bayer4x4, (SCREEN_W // 4, SCREEN_H // 4)) * 16 - 128
-
-    # Generate static coordinate grids for the tunnel math
-    X, Y = np.mgrid[0:SCREEN_W, 0:SCREEN_H]
-    
-    # Generate the Rotozoom surface
     badge = generate_roto_badge()
-    # 50% Translucency blend! Pygame alpha blending works identically to C's bitwise right-shift.
     badge.set_alpha(128) 
 
     clock = pygame.time.Clock()
     start_time = time.time()
     running = True
+
+    # --- PRE-CALCULATE FLOOR MATRICES ---
+    # We only compute math for the bottom half of the screen (Y from 1 to 300)
+    # X goes from -400 to 399
+    X, Y = np.mgrid[-SCREEN_W//2 : SCREEN_W//2, 1 : SCREEN_H//2 + 1]
+    
+    # Perspective division: Z gets smaller as Y gets larger (moving towards the bottom of screen)
+    camera_height = 8000.0
+    Z = camera_height / Y 
+    
+    # World Coordinates before rotation
+    WX = X * Z / 250.0
+    WY = Z
 
     while running:
         for event in pygame.event.get():
@@ -117,48 +112,58 @@ def main():
 
         t = time.time() - start_time
 
-        # --- TUNNEL GENERATOR ---
-        shift_x = int(math.sin(t * 0.8) * 160.0)
-        shift_y = int(math.cos(t * 1.3) * 120.0)
-
-        dx = X - (SCREEN_W / 2) + shift_x
-        dy = Y - (SCREEN_H / 2) + shift_y
+        # --- 3D PERSPECTIVE FLOOR GENERATOR ---
+        # 1. Rotate the camera (Yaw) and move forward
+        angle = t * 0.4
+        cos_a = math.cos(angle)
+        sin_a = math.sin(angle)
         
-        dist = np.sqrt(dx**2 + dy**2)
-        dist[dist < 1.0] = 1.0
-
-        u = (64.0 * np.arctan2(dy, dx) / np.pi).astype(np.int32) & 0xFF
-        v = (25000.0 / dist + t * 200.0).astype(np.int32) & 0xFF
-
-        tex_val = u ^ v
-        lum = np.where((tex_val + dither_map) > 128, 255, 0)
+        scroll_speed = t * 300.0
         
-        shade = np.clip(dist / 300.0, 0.0, 1.0)
-        
-        r = (lum / 4 * shade).astype(np.uint8)
-        g = (lum / 1.2 * shade).astype(np.uint8)
-        b = (lum * shade).astype(np.uint8)
+        # Apply affine rotation and translation to the 3D world coordinates
+        u = (WX * cos_a - WY * sin_a) + scroll_speed
+        v = (WX * sin_a + WY * cos_a) + scroll_speed
 
-        # Starfield
-        stars = (dist < 15.0) & (np.random.rand(SCREEN_W, SCREEN_H) > 0.95)
-        r[stars], g[stars], b[stars] = 255, 255, 255
+        # 2. Generate the XOR Texture Pattern (Classic Amiga Floor style)
+        u_int = u.astype(np.int32) >> 5
+        v_int = v.astype(np.int32) >> 5
+        tex_val = (u_int ^ v_int) & 1
 
-        # Blit NumPy arrays directly to the screen via Pygame Surfarray
+        # 3. Colors (Neon Blue & Magenta grid)
+        floor_r = np.where(tex_val, 0, 180).astype(np.uint8)
+        floor_g = np.where(tex_val, 150, 0).astype(np.uint8)
+        floor_b = np.where(tex_val, 255, 100).astype(np.uint8)
+
+        # 4. Depth Shading (Fade to black at the horizon)
+        # Y goes from 1 (horizon) to 300 (bottom).
+        shade = np.clip(Y / (SCREEN_H // 2), 0.0, 1.0)
+        floor_r = (floor_r * shade).astype(np.uint8)
+        floor_g = (floor_g * shade).astype(np.uint8)
+        floor_b = (floor_b * shade).astype(np.uint8)
+
+        # 5. Write to Pygame Surface
         pixels3d = pygame.surfarray.pixels3d(screen)
-        pixels3d[:, :, 0] = r
-        pixels3d[:, :, 1] = g
-        pixels3d[:, :, 2] = b
-        del pixels3d
+        
+        # Clear top half (sky) to pure black
+        pixels3d[:, :SCREEN_H//2, :] = 0
+        
+        # Draw floor on the bottom half
+        pixels3d[:, SCREEN_H//2:, 0] = floor_r
+        pixels3d[:, SCREEN_H//2:, 1] = floor_g
+        pixels3d[:, SCREEN_H//2:, 2] = floor_b
+        
+        del pixels3d # Must delete the lock to allow blitting on top!
 
         # --- ROTOZOOMER ---
-        angle = math.degrees(t * 2.0) # Pygame rotation uses degrees
-        zoom = 1.2 + math.sin(t * 3.0) * 0.6
+        angle_deg = math.degrees(t * 1.5) 
+        zoom = 1.0 + math.sin(t * 2.0) * 0.4
         
-        # Pygame handles the affine matrix scaling/rotation in C internally!
-        rotated_badge = pygame.transform.rotozoom(badge, -angle, zoom)
+        rotated_badge = pygame.transform.rotozoom(badge, -angle_deg, zoom)
         
-        center_x = (SCREEN_W / 2) + int(math.sin(t * 1.5) * 180.0)
-        center_y = (SCREEN_H / 2) + int(math.cos(t * 1.1) * 100.0)
+        center_x = (SCREEN_W / 2) + int(math.sin(t * 1.5) * 150.0)
+        
+        # Make the badge hover dynamically over the horizon line
+        center_y = (SCREEN_H / 2) - 50 + int(math.sin(t * 2.2) * 80.0)
         
         rect = rotated_badge.get_rect(center=(center_x, center_y))
         screen.blit(rotated_badge, rect)
