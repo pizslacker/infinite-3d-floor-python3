@@ -1,6 +1,6 @@
 # infinite-3d-floor
 
-A little excercise for myself creating yet another demoscene'ish program in Python3, showing off classic Amiga demoscene-like "_infinite floor_" graphics, **On Linux**.
+A little excercise for myself creating yet another demoscene'ish program in `Python3`, showing off classic Amiga demoscene-like "_infinite floor_" graphics effect, **On Linux**.
 
 Made with Python3 using PyGame that implements a perspective checkered spinning tunnel, Bresenham's Line Algortihm moving starfield and a isometric polygon cube moving floor. Now with a soundbyte bgm loop!
 
