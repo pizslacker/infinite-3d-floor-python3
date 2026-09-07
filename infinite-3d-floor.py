@@ -70,6 +70,69 @@ def generate_roto_badge():
     
     return badge
 
+def render_scroller(surface, t, text):
+    screen_h = SCREEN_H
+    screen_w = SCREEN_W
+    scale = 6.0  # Increased from 4.0 for 'Fat Text'
+    base_y = screen_h - 120.0
+    speed = 250.0
+    
+    length = len(text)
+    char_width = 8.0 * scale
+    total_width = length * char_width
+    offset = screen_w - (t * speed % total_width)
+
+    # Collect all rects before drawing so the shadow stays strictly in the background
+    shadow_rects = []
+    text_passes = [] 
+
+    for row in range(8):
+        # Amiga Copper Bar effect
+        phase = row * 0.4 - t * 4.0
+        cr = int((math.sin(phase + 0.0) + 1.0) * 127.5)
+        cg = int((math.sin(phase + 2.0) + 1.0) * 127.5)
+        cb = int((math.sin(phase + 4.0) + 1.0) * 127.5)
+        color = (cr, cg, cb)
+        
+        row_rects = []
+        for i in range(length * 2):
+            char = text[i % length]
+            c = ord(char.upper()) if 'a' <= char <= 'z' else ord(char)
+            if c < 32 or c > 95: c = 32
+            
+            glyph_row = font8x8[c - 32][row]
+            for col in range(8):
+                if glyph_row & (1 << (7 - col)):
+                    px = offset + (i * char_width) + (col * scale)
+                    
+                    # Slightly wider culling to prevent the wobbling shadow from popping in
+                    if -scale - 20 < px < screen_w + 20: 
+                        # Base wave for the main text
+                        py = base_y + math.sin(px * 0.005 + t * 4.0) * 45.0 + (row * scale)
+                        
+                        # --- WATER DROP-SHADOW MATH ---
+                        # Offset by 12px, then add high-frequency sine ripples dependent 
+                        # on time and screen position to simulate underwater refraction
+                        water_x = px + 12.0 + math.sin(py * 0.15 + t * 6.0) * 8.0
+                        water_y = py + 12.0 + math.cos(px * 0.10 + t * 4.0) * 8.0
+                        
+                        shadow_rects.append(pygame.Rect(int(water_x), int(water_y), int(scale), int(scale)))
+                        row_rects.append(pygame.Rect(int(px), int(py), int(scale), int(scale)))
+        
+        if row_rects:
+            text_passes.append((color, row_rects))
+
+    # --- SCROLLING TEXT w/WATER DROP-SHADOW --
+    # 1. Draw the watery drop-shadow pass first (Deep Liquid Cyan/Blue)
+    shadow_color = (15, 30, 60)
+    for rect in shadow_rects:
+        surface.fill(shadow_color, rect)
+
+    # 2. Draw the main foreground text with Copper shading on top
+    for color, rects in text_passes:
+        for rect in rects:
+            surface.fill(color, rect)
+
 def main():
     pygame.init()
     pygame.mixer.init()
@@ -78,10 +141,10 @@ def main():
     pygame.display.set_caption("Python Demoscene: Infinite 3D Floor")
     
     try:
-        pygame.mixer.music.load("drone.mp3")
+        pygame.mixer.music.load("A.Cambian.Bitdream.mp3")
         pygame.mixer.music.play(-1) 
     except pygame.error as e:
-        print(f"Warning: Could not load drone.mp3 - {e}")
+        print(f"Warning: Could not load A.Cambian.Bitdream.mp3 - {e}")
 
     badge = generate_roto_badge()
     badge.set_alpha(128) 
@@ -89,6 +152,7 @@ def main():
     clock = pygame.time.Clock()
     start_time = time.time()
     running = True
+    msg = " *** AMIGA DEMOSCENE RULES *** THE PIXELS ARE BENDING *** HARDWARE ACCELERATED IN PYTHON AND PYGAME *** DRONING IS LOOPING *** THE FLOOR IS INFINITE *** OUR FATHER *** WHO ART IN SBIN *** INIT IS THY NAME *** THY PID IS 1 *** THY CHILDREN RUN IN USER SPACE *** GIVE US THIS DAY OUR DAILY RAM *** AND FORGIVE US OUR BAD CODE *** AS WE FORGIVE THOSE WHO FORK OUR CODE *** LEAD US NOT INTO SEGMENTATION FAULT *** BUT DELIVER US FROM SIGKILL *** SUDO *** "
 
     # --- PRE-CALCULATE FLOOR MATRICES ---
     # We only compute math for the bottom half of the screen (Y from 1 to 300)
@@ -167,6 +231,9 @@ def main():
         
         rect = rotated_badge.get_rect(center=(center_x, center_y))
         screen.blit(rotated_badge, rect)
+
+        # 6. Amiga Sine Wave Scroller (Two-pass with water drop shadow)
+        render_scroller(screen, t, msg)
 
         pygame.display.flip()
         clock.tick(60)
