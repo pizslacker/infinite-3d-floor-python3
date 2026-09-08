@@ -70,31 +70,89 @@ def generate_roto_badge():
     
     return badge
 
+def render_boing_ball(t):
+    """Generates a true 3D rotating Amiga Boing Ball using NumPy raycasting."""
+    R = 50  # Radius of the ball
+    size = R * 2
+    surface = pygame.Surface((size, size), pygame.SRCALPHA)
+    
+    # 2D Grid
+    X, Y = np.mgrid[-R:R, -R:R]
+    r_sq = X**2 + Y**2
+    mask = r_sq <= R**2
+    
+    # Calculate 3D Z-depth for the sphere (clip to prevent math domain errors)
+    Z = np.sqrt(np.clip(R**2 - r_sq, 0, None))
+    
+    # Calculate spherical UV coordinates for texture wrapping
+    U = np.arctan2(X, Z) 
+    V = np.arcsin(Y / R)
+    
+    # Rotate the ball continuously over time
+    rot_u = t * 2.5
+    rot_v = math.sin(t * 1.5) * 0.5 
+    
+    # Generate the checkerboard pattern on the 3D surface
+    tiles = 3.5
+    check = (np.floor((U + rot_u) * tiles) + np.floor((V + rot_v) * tiles)) % 2
+    
+    # Colors: Amiga Red and Silver/Grey
+    cr = np.where(check, 255, 190).astype(np.uint8)
+    cg = np.where(check, 30, 190).astype(np.uint8)
+    cb = np.where(check, 30, 190).astype(np.uint8)
+    
+    # Apply 3D volume shading (darker at the edges)
+    shade = (Z / R)
+    cr = (cr * shade).astype(np.uint8)
+    cg = (cg * shade).astype(np.uint8)
+    cb = (cb * shade).astype(np.uint8)
+    
+    alpha = np.zeros_like(X, dtype=np.uint8)
+    alpha[mask] = 255
+    
+    # Push pixels to the Pygame surface
+    pygame.surfarray.pixels_alpha(surface)[:] = alpha
+    pixels3d = pygame.surfarray.pixels3d(surface)
+    pixels3d[:, :, 0] = cr
+    pixels3d[:, :, 1] = cg
+    pixels3d[:, :, 2] = cb
+    del pixels3d 
+    
+    return surface
+
 def render_scroller(surface, t, text):
     screen_h = SCREEN_H
     screen_w = SCREEN_W
-    scale = 6.0  # Increased from 4.0 for 'Fat Text'
-    base_y = screen_h - 120.0
-    speed = 250.0
+    
+    scale = 8.0  # Increased for a bigger 'Fat Text' font
+    base_y = screen_h - 180.0  # Moved up slightly to leave room for the reflection beneath it
+    speed = 240.0  # Slowed down for readability
     
     length = len(text)
     char_width = 8.0 * scale
     total_width = length * char_width
     offset = screen_w - (t * speed % total_width)
 
-    # Collect all rects before drawing so the shadow stays strictly in the background
-    shadow_rects = []
-    text_passes = [] 
+    main_text_passes = []
+    reflection_passes = [] 
 
     for row in range(8):
-        # Amiga Copper Bar effect
+        # --- 1. MAIN TEXT (Copper Bar Shading) ---
         phase = row * 0.4 - t * 4.0
         cr = int((math.sin(phase + 0.0) + 1.0) * 127.5)
         cg = int((math.sin(phase + 2.0) + 1.0) * 127.5)
         cb = int((math.sin(phase + 4.0) + 1.0) * 127.5)
-        color = (cr, cg, cb)
+        main_color = (cr, cg, cb)
         
-        row_rects = []
+        # --- 2. WATER REFLECTION (Deep Cyan fading to black) ---
+        # row 7 (bottom of text) becomes the top of the reflection (brightest)
+        # row 0 (top of text) becomes the bottom of the reflection (darkest)
+        fade = (row + 1) / 8.0 
+        ref_color = (int(15 * fade), int(60 * fade), int(120 * fade))
+        
+        main_row_rects = []
+        ref_row_rects = []
+        
         for i in range(length * 2):
             char = text[i % length]
             c = ord(char.upper()) if 'a' <= char <= 'z' else ord(char)
@@ -105,31 +163,42 @@ def render_scroller(surface, t, text):
                 if glyph_row & (1 << (7 - col)):
                     px = offset + (i * char_width) + (col * scale)
                     
-                    # Slightly wider culling to prevent the wobbling shadow from popping in
-                    if -scale - 20 < px < screen_w + 20: 
-                        # Base wave for the main text
-                        py = base_y + math.sin(px * 0.005 + t * 4.0) * 45.0 + (row * scale)
+                    # Wider culling check so rippling reflection pixels don't pop-in suddenly
+                    if -scale - 40 < px < screen_w + 40: 
                         
-                        # --- WATER DROP-SHADOW MATH ---
-                        # Offset by 12px, then add high-frequency sine ripples dependent 
-                        # on time and screen position to simulate underwater refraction
-                        water_x = px + 12.0 + math.sin(py * 0.15 + t * 6.0) * 8.0
-                        water_y = py + 12.0 + math.cos(px * 0.10 + t * 4.0) * 8.0
+                        # --- NORMAL SCROLLING TEXT ---
+                        py = base_y + (row * scale)
+                        if -scale < px < screen_w:
+                            main_row_rects.append(pygame.Rect(int(px), int(py), int(scale), int(scale)))
                         
-                        shadow_rects.append(pygame.Rect(int(water_x), int(water_y), int(scale), int(scale)))
-                        row_rects.append(pygame.Rect(int(px), int(py), int(scale), int(scale)))
+                        # --- MIRRORED WATER RIPPLES ---
+                        reflected_row = 7 - row
+                        gap = 4.0 # Small gap between the text and the water surface
+                        ref_py_base = base_y + (8 * scale) + gap + (reflected_row * scale)
+                        
+                        # Ripple intensity increases as the reflection goes deeper
+                        ripple_amp_x = (reflected_row + 1) * 3.0
+                        ripple_amp_y = (reflected_row + 1) * 1.5
+                        
+                        # Apply waves based on screen position and time to warp the reflection
+                        water_x = px + math.sin(ref_py_base * 0.05 + t * 5.0) * ripple_amp_x
+                        water_y = ref_py_base + math.cos(px * 0.05 + t * 4.0) * ripple_amp_y
+                        
+                        ref_row_rects.append(pygame.Rect(int(water_x), int(water_y), int(scale), int(scale)))
         
-        if row_rects:
-            text_passes.append((color, row_rects))
+        if main_row_rects:
+            main_text_passes.append((main_color, main_row_rects))
+        if ref_row_rects:
+            reflection_passes.append((ref_color, ref_row_rects))
 
-    # --- SCROLLING TEXT w/WATER DROP-SHADOW --
-    # 1. Draw the watery drop-shadow pass first (Deep Liquid Cyan/Blue)
-    shadow_color = (15, 30, 60)
-    for rect in shadow_rects:
-        surface.fill(shadow_color, rect)
+    # --- RENDER PASSES ---
+    # Draw the water reflection pass first so it sits beneath the main text
+    for color, rects in reflection_passes:
+        for rect in rects:
+            surface.fill(color, rect)
 
-    # 2. Draw the main foreground text with Copper shading on top
-    for color, rects in text_passes:
+    # Draw the main foreground text with Copper shading on top
+    for color, rects in main_text_passes:
         for rect in rects:
             surface.fill(color, rect)
 
@@ -217,6 +286,34 @@ def main():
         pixels3d[:, SCREEN_H//2:, 2] = floor_b
         
         del pixels3d # Must delete the lock to allow blitting on top!
+
+        # --- AMIGA BOING BALL ---
+        # Generate the rotating 3D sphere
+        boing_surf = render_boing_ball(t)
+        ball_radius = 50
+        
+        # Pseudo-random X movement using layered sine waves
+        ball_x = (SCREEN_W / 2) + math.sin(t * 1.3) * math.cos(t * 0.7) * (SCREEN_W * 0.4)
+        
+        # Make the ball wander in the Z-depth (up and down the Y axis of the floor)
+        floor_z = (SCREEN_H // 2) + 120 + math.sin(t * 0.8) * 80.0
+        
+        # The Bounce: using absolute sine wave for sharp ground impacts
+        bounce_height = 120.0 + math.sin(t * 1.1) * 40.0
+        ball_y = floor_z - abs(math.sin(t * 3.5)) * bounce_height - ball_radius
+        
+        # Draw a translucent elliptical drop-shadow on the floor where it bounces
+        shadow_surface = pygame.Surface((120, 60), pygame.SRCALPHA)
+        shadow_w = 40 + abs(math.sin(t * 3.5)) * 40
+        shadow_h = 15 + abs(math.sin(t * 3.5)) * 15
+        shadow_rect = pygame.Rect((120 - shadow_w)//2, (60 - shadow_h)//2, shadow_w, shadow_h)
+        
+        # The shadow fades as the ball gets higher
+        shadow_alpha = int(180 - abs(math.sin(t * 3.5)) * 140)
+        pygame.draw.ellipse(shadow_surface, (10, 5, 15, shadow_alpha), shadow_rect)
+        
+        screen.blit(shadow_surface, (int(ball_x - 60), int(floor_z - 30)))
+        screen.blit(boing_surf, (int(ball_x - ball_radius), int(ball_y - ball_radius)))
 
         # --- ROTOZOOMER ---
         angle_deg = math.degrees(t * 1.5) 
