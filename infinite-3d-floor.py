@@ -241,7 +241,7 @@ def main():
         pygame.mixer.music.load("i3df.mp3")
         pygame.mixer.music.play(-1) 
     except pygame.error as e:
-        print(f"Warning: Could not load A.Cambian.Bitdream.mp3 - {e}")
+        print(f"Warning: Could not load i3df.mp3 - {e}")
 
     badge = generate_roto_badge()
     badge.set_alpha(128) 
