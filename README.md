@@ -1,4 +1,4 @@
-# infinite-3d-floor
+# infinite-3d-floor-python3
 
 A personal challenge creating yet another demoscene'ish program in `Python3`, showing off classic Amiga demoscene-like "_infinite floor_" graphics effect, scrolling text with water drop-shadow and a bouncing Boing Ball, **On Linux** :P
 
