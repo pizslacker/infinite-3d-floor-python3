@@ -4,6 +4,8 @@ A personal challenge creating yet another demoscene'ish program in `Python3`, sh
 
 Made with `Python3` using `PyGame` that implements a perspective checkered moving 3d floor, Rotozoomer, Boing Ball, "Copper" Raster Bars and "Copper" Raster scrolling text with water shimmering effect.
 
+Effects achieved using `PyGame` accelerated blitter functions.
+
 Should work on any Linux distribution that has `Python3` + `PyGame`.
 
 Sound loop provided by [CallRoll](https://archive.org/details/free-chiptune-collection-for-game-usage).
