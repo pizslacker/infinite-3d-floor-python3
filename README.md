@@ -6,7 +6,7 @@ Made with `Python3` using `PyGame` that implements a perspective checkered movin
 
 Effects achieved using `PyGame` accelerated [blitter](https://www.pygame.org/docs/ref/surface.html?highlight=blit) functions.
 
-Should work on any Linux distribution that has `Python3` + `PyGame`.
+Should work on any Linux distribution (or Windows for that matter) that has `Python3` + `PyGame`.
 
 Chiptune track provided by [CallRoll](https://archive.org/details/free-chiptune-collection-for-game-usage).
 
