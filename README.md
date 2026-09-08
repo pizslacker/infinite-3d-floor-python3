@@ -1,6 +1,6 @@
 # infinite-3d-floor-python3
 
-A personal challenge creating yet another demoscene'ish (_**cracktro**_) program in `Python3`, showing off classic Amiga demoscene-like "_infinite floor_" graphics effect, scrolling text with water drop-shadow and a bouncing Boing Ball, **On Linux** :P
+A personal challenge creating yet another demoscene'ish (_**cracktro**_) program in `Python3`, showing off classic Amiga "_infinite floor_" graphics effect, with accompanying scrolling copper raster text with water shimmering and a bouncing Boing Ball, **On Linux** :P
 
 Made with `Python3` using `PyGame` that implements a perspective checkered moving 3d floor, Rotozoomer, Boing Ball, "Copper" Raster Bars and "Copper" Raster scrolling text with water shimmering effect.
 
