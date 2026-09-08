@@ -3,6 +3,8 @@ import pygame
 import numpy as np
 import math
 import time
+import argparse
+import sys
 
 SCREEN_W = 1280
 SCREEN_H = 720
@@ -192,22 +194,48 @@ def render_scroller(surface, t, text):
             reflection_passes.append((ref_color, ref_row_rects))
 
     # --- RENDER PASSES ---
-    # Draw the water reflection pass first so it sits beneath the main text
+    
+    # 1. Draw the water reflection pass first (50% Translucent)
     for color, rects in reflection_passes:
-        for rect in rects:
-            surface.fill(color, rect)
+        # Create a single translucent tile for this specific row's reflection color
+        # We append 128 (50% opacity) to the RGB color tuple
+        ref_tile = pygame.Surface((int(scale), int(scale)), pygame.SRCALPHA)
+        ref_tile.fill((color[0], color[1], color[2], 128))
+        
+        # Use Pygame's hardware-accelerated batch blitting to draw this row instantly
+        surface.blits([(ref_tile, rect) for rect in rects])
 
-    # Draw the main foreground text with Copper shading on top
+    # 2. Draw the main foreground text with Copper shading on top
     for color, rects in main_text_passes:
         for rect in rects:
             surface.fill(color, rect)
 
 def main():
+    global SCREEN_W, SCREEN_H
+    
+    # --- COMMAND LINE ARGUMENTS ---
+    parser = argparse.ArgumentParser(description="Python Demoscene: Infinite 3D Floor", add_help=False)
+    parser.add_argument("-w", type=int, default=1280, help="Screen width")
+    parser.add_argument("-h", type=int, default=720, help="Screen height")
+    parser.add_argument("-f", "--fullscreen", action="store_true", help="Enable fullscreen")
+    parser.add_argument("--help", action="help", help="Show this help message and exit")
+    
+    args = parser.parse_args()
+    SCREEN_W = args.w
+    SCREEN_H = args.h
+    fullscreen = args.fullscreen
+
+    # --- INITIALIZE PYGAME ---
     pygame.init()
     pygame.mixer.init()
     
-    screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+    flags = pygame.FULLSCREEN | pygame.SCALED if fullscreen else 0
+    screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), flags)
     pygame.display.set_caption("Python Demoscene: Infinite 3D Floor")
+    
+    # If fullscreen, dynamically update variables to the actual desktop resolution
+    if fullscreen:
+        SCREEN_W, SCREEN_H = screen.get_size()
     
     try:
         pygame.mixer.music.load("A.Cambian.Bitdream.mp3")
@@ -257,24 +285,24 @@ def main():
         u = (WX * cos_a - WY * sin_a) + scroll_speed
         v = (WX * sin_a + WY * cos_a) + scroll_speed
 
-        # 2. Generate the XOR Texture Pattern (Classic Amiga Floor style)
+        # Generate the XOR Texture Pattern (Classic Amiga Floor style)
         u_int = u.astype(np.int32) >> 5
         v_int = v.astype(np.int32) >> 5
         tex_val = (u_int ^ v_int) & 1
 
-        # 3. Colors (Neon Blue & Magenta grid)
+        # Colors (Neon Blue & Magenta grid)
         floor_r = np.where(tex_val, 0, 180).astype(np.uint8)
         floor_g = np.where(tex_val, 150, 0).astype(np.uint8)
         floor_b = np.where(tex_val, 255, 100).astype(np.uint8)
 
-        # 4. Depth Shading (Fade to black at the horizon)
+        # Depth Shading (Fade to black at the horizon)
         # Y goes from 1 (horizon) to 300 (bottom).
         shade = np.clip(Y / (SCREEN_H // 2), 0.0, 1.0)
         floor_r = (floor_r * shade).astype(np.uint8)
         floor_g = (floor_g * shade).astype(np.uint8)
         floor_b = (floor_b * shade).astype(np.uint8)
 
-        # 5. Write to Pygame Surface
+        # Write to Pygame Surface
         pixels3d = pygame.surfarray.pixels3d(screen)
         
         # Clear top half (sky) to pure black
@@ -287,33 +315,70 @@ def main():
         
         del pixels3d # Must delete the lock to allow blitting on top!
 
-        # --- AMIGA BOING BALL ---
-        # Generate the rotating 3D sphere
-        boing_surf = render_boing_ball(t)
-        ball_radius = 50
+        # --- CLASSIC AMIGA RASTER BARS (COPPER BARS) ---
+        sky_h = SCREEN_H // 2
         
-        # Pseudo-random X movement using layered sine waves
+        # Create 3 independent chasing bars
+        for i in range(3):  
+            # Oscillate the center of each bar up and down the sky
+            bar_center = (sky_h // 2) + math.sin(t * 1.5 + i * 2.0) * (sky_h * 0.4)
+            bar_thickness = 30
+            
+            # Draw the bar using horizontal 2-pixel high strips to create a smooth gradient
+            for line in range(-bar_thickness, bar_thickness, 2):
+                y_pos = int(bar_center + line)
+                
+                # Clip the rendering so the bars never overlap the 3D floor
+                if 0 <= y_pos < sky_h:
+                    # The center of the bar is brightest (1.0), fading to 0.0 at the edges
+                    intensity = 1.0 - (abs(line) / bar_thickness)
+                    
+                    # Cycle colors: 0 = Deep Blue, 1 = Hot Pink, 2 = Cyan
+                    if i == 0:
+                        r, g, b = 0, int(120 * intensity), int(255 * intensity)
+                    elif i == 1:
+                        r, g, b = int(255 * intensity), 0, int(180 * intensity)
+                    else:
+                        r, g, b = 0, int(255 * intensity), int(150 * intensity)
+                        
+                    # Draw the horizontal raster line across the entire screen
+                    pygame.draw.rect(screen, (r, g, b), (0, y_pos, SCREEN_W, 2))
+
+        # --- AMIGA BOING BALL W/ MOTION BLUR ---
+        ball_radius = 50
+        num_ghosts = 5  # Number of trail echoes
+        
+        # Draw the floor shadow based on the current actual time (t)
+        floor_z = (SCREEN_H // 2) + 120 + math.sin(t * 0.8) * 80.0
         ball_x = (SCREEN_W / 2) + math.sin(t * 1.3) * math.cos(t * 0.7) * (SCREEN_W * 0.4)
         
-        # Make the ball wander in the Z-depth (up and down the Y axis of the floor)
-        floor_z = (SCREEN_H // 2) + 120 + math.sin(t * 0.8) * 80.0
-        
-        # The Bounce: using absolute sine wave for sharp ground impacts
-        bounce_height = 120.0 + math.sin(t * 1.1) * 40.0
-        ball_y = floor_z - abs(math.sin(t * 3.5)) * bounce_height - ball_radius
-        
-        # Draw a translucent elliptical drop-shadow on the floor where it bounces
         shadow_surface = pygame.Surface((120, 60), pygame.SRCALPHA)
         shadow_w = 40 + abs(math.sin(t * 3.5)) * 40
         shadow_h = 15 + abs(math.sin(t * 3.5)) * 15
         shadow_rect = pygame.Rect((120 - shadow_w)//2, (60 - shadow_h)//2, shadow_w, shadow_h)
-        
-        # The shadow fades as the ball gets higher
         shadow_alpha = int(180 - abs(math.sin(t * 3.5)) * 140)
         pygame.draw.ellipse(shadow_surface, (10, 5, 15, shadow_alpha), shadow_rect)
-        
         screen.blit(shadow_surface, (int(ball_x - 60), int(floor_z - 30)))
-        screen.blit(boing_surf, (int(ball_x - ball_radius), int(ball_y - ball_radius)))
+        
+        # Render the motion blur trail (oldest ghost first, newest frame last)
+        for i in range(num_ghosts, -1, -1):
+            # Go backward in time 0.04 seconds per ghost
+            trail_t = t - (i * 0.04) 
+            
+            # Recalculate physics position for this exact historical millisecond
+            t_floor_z = (SCREEN_H // 2) + 120 + math.sin(trail_t * 0.8) * 80.0
+            t_ball_x = (SCREEN_W / 2) + math.sin(trail_t * 1.3) * math.cos(trail_t * 0.7) * (SCREEN_W * 0.4)
+            t_bounce = 120.0 + math.sin(trail_t * 1.1) * 40.0
+            t_ball_y = t_floor_z - abs(math.sin(trail_t * 3.5)) * t_bounce - ball_radius
+            
+            # Generate the ball at its historical 3D rotation
+            boing_surf = render_boing_ball(trail_t)
+            
+            if i > 0:
+                # Fade out older ghosts (255 is solid, 0 is invisible)
+                boing_surf.set_alpha(255 - (i * 45))
+                
+            screen.blit(boing_surf, (int(t_ball_x - ball_radius), int(t_ball_y - ball_radius)))
 
         # --- ROTOZOOMER ---
         angle_deg = math.degrees(t * 1.5) 
@@ -329,7 +394,7 @@ def main():
         rect = rotated_badge.get_rect(center=(center_x, center_y))
         screen.blit(rotated_badge, rect)
 
-        # 6. Amiga Sine Wave Scroller (Two-pass with water drop shadow)
+        # Amiga Copper Bar Scroller (Two-pass with water ripple shadow)
         render_scroller(screen, t, msg)
 
         pygame.display.flip()
