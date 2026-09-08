@@ -21,5 +21,6 @@ $ ./infinite-3d-floor.py -f / --fullscreen /  -w 1280 -h 720 / --width 1280 --he
 #### How:
 - **Perspective Floor**: map the 2D screen pixels of the bottom half of the screen into 3D world space using a depth divisor (Distance $Z = \frac{\text{Camera Height}}{Y}$).
 - **Rotozoomer Overlay**: A smaller, floating texture (like a logo or text) spinning and scaling smoothly across the screen, rendered directly into the pixel buffer on top of the 3D floor.
+- **Boing Ball**: The "Boing Ball" is the ultimate crown jewel of the Amiga demoscene! To do it justice, we won’t just move a flat 2D sprite around. We will use NumPy to calculate a true 3D raycasted sphere with a wrapping checkerboard texture that dynamically rotates and depth-shades itself every single frame.
 
 ![infinite-3d-floor](images/infinite-3d-floor.png)
