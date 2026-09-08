@@ -8,7 +8,7 @@ Effects achieved using `PyGame` accelerated [blitter](https://www.pygame.org/doc
 
 Should work on any Linux distribution that has `Python3` + `PyGame`.
 
-Sound loop provided by [CallRoll](https://archive.org/details/free-chiptune-collection-for-game-usage).
+Chiptune track provided by [CallRoll](https://archive.org/details/free-chiptune-collection-for-game-usage).
 
 ## Required:
 ```bash
