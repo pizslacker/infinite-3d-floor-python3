@@ -4,7 +4,7 @@ A personal challenge creating yet another demoscene'ish (_**cracktro**_) program
 
 Made with `Python3` using `PyGame` that implements effects using accelerated [blitter](https://www.pygame.org/docs/ref/surface.html?highlight=blit) functions.
 
-Should work on any Linux distribution (or Windows for that matter) that has `Python3` + `PyGame`.
+Should work on any Linux distribution (or Windows for that matter) that has `Python3` + `PyGame` + `NumPy`.
 
 Chiptune track provided by [CallRoll](https://archive.org/details/free-chiptune-collection-for-game-usage).
 
