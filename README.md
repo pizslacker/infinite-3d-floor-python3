@@ -6,7 +6,7 @@ Made with Python3 using PyGame that implements a perspective checkered spinning 
 
 Should work on any Linux distribution that has `Python3` + `PyGame`.
 
-Sound loop courtesy of [**k!M**](https://soundcloud.com/kim-olsen-357297567).
+Sound loop courtesy of [CallRoll](https://archive.org/details/free-chiptune-collection-for-game-usage).
 
 ## Required:
 ```bash
