@@ -6,7 +6,7 @@ Made with `Python3` using `PyGame` that implements effects using accelerated [bl
 
 Should work on any Linux distribution (or Windows for that matter) that has `Python3` + `PyGame` + `NumPy`.
 
-Chiptune track provided by [CallRoll](https://archive.org/details/free-chiptune-collection-for-game-usage).
+Chiptune track provided by [CallRoll](https://archive.org/details/free-chiptune-collection-for-game-usage) (`Track01.wav`).
 
 ## Required:
 ```bash
