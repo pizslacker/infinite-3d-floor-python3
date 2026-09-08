@@ -6,6 +6,8 @@ Made with Python3 using PyGame that implements a perspective checkered spinning 
 
 Should work on any Linux distribution that has `Python3` + `PyGame`.
 
+Sound loop courtesy of [**k!M**](https://soundcloud.com/kim-olsen-357297567).
+
 ## Required:
 ```bash
 pip install pygame numpy
