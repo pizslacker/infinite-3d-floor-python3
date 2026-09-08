@@ -10,7 +10,7 @@ Sound loop courtesy of [**k!M**](https://soundcloud.com/kim-olsen-357297567).
 
 ## Required:
 ```bash
-pip install python3-pygame numpy
+sudo apt-get install python3 python3-pygame python3-numpy
 ```
 
 Usage:
