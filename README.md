@@ -2,7 +2,7 @@
 
 A personal challenge creating yet another demoscene'ish program in `Python3`, showing off classic Amiga demoscene-like "_infinite floor_" graphics effect, scrolling text with water drop-shadow and a bouncing Boing Ball, **On Linux** :P
 
-Made with Python3 using PyGame that implements a perspective checkered spinning tunnel, Bresenham's Line Algortihm moving starfield and a isometric polygon cube moving floor. Now with a soundbyte bgm loop!
+Made with `Python3` using `PyGame` that implements a perspective checkered moving 3d floor, Rotozoomer, Boing Ball, "Copper" Raster Bars and "Copper" Raster scrolling text with water shimmering effect.
 
 Should work on any Linux distribution that has `Python3` + `PyGame`.
 
