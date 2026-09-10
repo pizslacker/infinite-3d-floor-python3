@@ -384,7 +384,11 @@ def main():
         angle_deg = math.degrees(t * 1.5) 
         zoom = 1.0 + math.sin(t * 2.0) * 0.4
         
+        # Rotozoom creates a new surface, resetting overall alpha
         rotated_badge = pygame.transform.rotozoom(badge, -angle_deg, zoom)
+        
+        # Apply 50% translucency to the newly generated surface (128 out of 255)
+        rotated_badge.set_alpha(128)
         
         center_x = (SCREEN_W / 2) + int(math.sin(t * 1.5) * 150.0)
         
