@@ -2,6 +2,8 @@
 
 A personal challenge creating yet another demoscene'ish (_**cracktro**_) program in `Python3`, showing off classic Amiga "_infinite floor_" perspective graphics effect, with accompanying scrolling copper raster text with water shimmering and a bouncing Boing Ball, **On Linux** :P
 
+Demo video: https://www.youtube.com/watch?v=n1PZppBHraM
+
 Made with `Python3` using `PyGame` that implements effects using accelerated [blitter](https://www.pygame.org/docs/ref/surface.html?highlight=blit) functions.
 
 Should work on any Linux distribution (or Windows for that matter) that has `Python3` + `PyGame` + `NumPy`.
